@@ -1,0 +1,15 @@
+unit uFuncoes;
+
+interface
+
+
+function BuscaSplash(pTable, pFieldRetorno: string): string;
+
+implementation
+
+function BuscaSplash(pTable, pFieldRetorno: string): string;
+begin
+
+end;
+
+end.

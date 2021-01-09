@@ -1,0 +1,34 @@
+unit uProduto;
+
+interface
+
+uses
+  uDM, uPedidoProduto;
+
+type
+
+  TProduto = class
+  private
+    FID: integer;
+    FDescricao: string;
+    FPreco: currency;
+  public
+    constructor Create; virtual;
+    destructor Destroy; virtual;
+    procedure Insert; virtual;
+    procedure Delete; virtual;
+    procedure Busca;
+    procedure LimpaDados;
+  published
+    property ID: integer     read FNum_pedido      write FNum_pedido;
+    property Descricao: integer read FCliente_codigo  write FCliente_codigo;
+    property Total: currency         read FTotal           write FTotal;
+  end;
+
+implementation
+
+uses
+  System.SysUtils, Vcl.Dialogs;
+
+
+end.

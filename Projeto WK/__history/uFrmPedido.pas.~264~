@@ -1,0 +1,384 @@
+unit uFrmPedido;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, Data.DB,
+  Vcl.Grids, Vcl.DBGrids, Datasnap.DBClient, uPedido, uPedidoProduto, uCliente, uProduto,
+  Vcl.ComCtrls, System.DateUtils, Vcl.Mask, Vcl.DBCtrls;
+
+type
+  TFrmPedido = class(TForm)
+    PnlDadosPrincipais: TPanel;
+    PnlItens: TPanel;
+    EdtPedCli: TEdit;
+    EdtCliNome: TEdit;
+    Label1: TLabel;
+    Label2: TLabel;
+    EdtPedId: TEdit;
+    BtnBuscaPedido: TButton;
+    Panel1: TPanel;
+    Label3: TLabel;
+    BtnProInserir: TButton;
+    LblDados: TLabel;
+    LblProdutos: TLabel;
+    cDados: TClientDataSet;
+    DBGrid1: TDBGrid;
+    DataSource1: TDataSource;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    EdtPedEmissao: TDateTimePicker;
+    Panel2: TPanel;
+    BtnSalvar: TButton;
+    cDadosID_PRODUTO: TIntegerField;
+    cDadosDESCRICAO: TStringField;
+    cDadosQUANTIDADE: TCurrencyField;
+    cDadosVLR_TOTAL: TCurrencyField;
+    Label7: TLabel;
+    BtnProCancelar: TButton;
+    cDadosPRECO: TCurrencyField;
+    EdtProID: TEdit;
+    EdtProDescricao: TEdit;
+    EdtProPreco: TEdit;
+    EdtProQuantidade: TEdit;
+    EdtProVlrTotal: TEdit;
+    Label8: TLabel;
+    EdtTotalPedido: TEdit;
+    BtnDeletar: TButton;
+    procedure EdtProPrecoExit(Sender: TObject);
+    procedure EdtPedCliChange(Sender: TObject);
+    procedure EdtProQuantidadeExit(Sender: TObject);
+    procedure EdtPedCliExit(Sender: TObject);
+    procedure BtnSalvarClick(Sender: TObject);
+    procedure BtnDeletarClick(Sender: TObject);
+    procedure EdtProIdExit(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    procedure BtnProInserirClick(Sender: TObject);
+    procedure DBGrid1DrawColumnCell(Sender: TObject; const Rect: TRect;
+      DataCol: Integer; Column: TColumn; State: TGridDrawState);
+    procedure DBGrid1KeyPress(Sender: TObject; var Key: Char);
+    procedure BtnProCancelarClick(Sender: TObject);
+    procedure DBGrid1Enter(Sender: TObject);
+    procedure DBGrid1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure BtnBuscaPedidoClick(Sender: TObject);
+
+  private
+    { Private declarations }
+    _Pedido: TPedido;
+    _ListaProdutos: array[0..999] of TPedidoProduto;
+    _Cliente: TCliente;
+    _Produto: TProduto;
+    procedure LimpaCabecalho;
+    procedure LimpaProduto;
+    procedure TotalizaPedido;
+  public
+    { Public declarations }
+  end;
+
+var
+  FrmPedido: TFrmPedido;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  uDM, uFuncoes;
+
+procedure TFrmPedido.EdtPedCliExit(Sender: TObject);
+begin
+  if trim(EdtPedCLi.Text) <> '' then begin
+    //Valida Cliente
+    if not(Assigned(_Cliente)) then _Cliente := TCliente.Create;
+    _Cliente.ID := StrToIntDef(trim(EdtPedCLi.Text),0);
+    if not(_Cliente.Busca) then begin
+      EdtCliNome.Text := '';
+      MessageDlg('Cliente não encontrado', mtInformation, [mbOK], 0);
+      EdtPedCLi.SetFocus;
+    end else
+      EdtCliNome.Text := _Cliente.Nome;
+  end;
+end;
+
+procedure TFrmPedido.EdtProIdExit(Sender: TObject);
+begin
+  if trim(EdtProId.Text) <> '' then begin
+    //Valida Produto
+    if not(Assigned(_Produto)) then _Produto := TProduto.Create;
+    _Produto.ID := StrToIntDef(trim(EdtProId.Text),0);
+    if not(_Produto.Busca) then begin
+      LimpaProduto;
+      MessageDlg('Produto não encontrado', mtInformation, [mbOK], 0);
+      EdtProId.SetFocus;
+    end else begin
+      EdtProDescricao.Text := _Produto.Descricao;
+      EdtProPreco.Text     := FormatCurr('##0.00',_Produto.Preco);
+      EdtProQuantidade.Text := '0,00';
+    end;
+  end;
+end;
+
+procedure TFrmPedido.EdtProQuantidadeExit(Sender: TObject);
+begin
+  EdtProQuantidade.Text := FormataVlr(EdtProQuantidade.Text);
+  EdtProVlrTotal.Text := FormataVlr(CurrToStr(StrToCurrDef(EdtProPreco.Text,0) * StrToCurrDef(EdtProQuantidade.Text,0)));
+end;
+
+procedure TFrmPedido.BtnBuscaPedidoClick(Sender: TObject);
+var
+  iNumPedido, i: integer;
+begin
+  iNumPedido := StrToIntDef(InputBox('Consulta Pedido', 'Digite o número do pedido', ''),0);
+  if iNumPedido > 0 then begin
+    if Assigned(_Pedido) then _Pedido.Destroy;
+    _Pedido := TPedido.Create;
+    _Pedido.Num_pedido := iNumPedido;
+    if _Pedido.Busca then begin //Carrega dados PEDIDO
+      EdtPedId.Text      := IntToStr(_Pedido.Num_pedido);
+      EdtPedEmissao.Date := _Pedido.Data_emissao;
+      EdtPedCli.Text     := IntToStr(_Pedido.Cliente_codigo);
+      EdtCliNome.Text    := _Pedido.Cliente_nome;
+
+      _Pedido._PedidoProduto.Num_pedido := _Pedido.Num_pedido; //Carrega itens
+      _Pedido._PedidoProduto.CarregaProdutos(_ListaProdutos);
+      if not(cDados.Active) then cDados.Open;
+      cDados.EmptyDataSet;
+      for i := 0 to 999 do begin //Inclui itens dataset
+        if Assigned(_ListaProdutos[i]) then begin
+          cDados.Append;
+          cDadosID_PRODUTO.AsInteger  := _ListaProdutos[i].ID_produto;
+          cDadosDESCRICAO.AsString    := _ListaProdutos[i].Descricao_produto;
+          cDadosQUANTIDADE.AsCurrency := _ListaProdutos[i].Quantidade;
+          cDadosVLR_TOTAL.AsCurrency  := _ListaProdutos[i].Vlr_total;
+          cDadosPRECO.AsCurrency      := _ListaProdutos[i].Vlr_unitario;
+          cDados.Post;
+
+          FreeAndNil(_ListaProdutos[i]);//Limpa da Memoria
+        end;
+      end;
+    end else MessageDlg('Pedido não encontrado', mtInformation, [mbOK], 0);
+  end else MessageDlg('Informe um numero de pedido', mtInformation, [mbOK], 0);
+end;
+
+procedure TFrmPedido.BtnDeletarClick(Sender: TObject);
+var
+  iNumPedido: integer;
+begin
+  iNumPedido := StrToIntDef(InputBox('Consulta Pedido', 'Digite o número do pedido', ''),0);
+  if iNumPedido > 0 then begin
+    if MessageDlg('Deseja realmente cancelar o pedido '+IntToStr(iNumPedido)+'? ', mtConfirmation, [mbYes, mbNo], 0) = mrNo then exit;
+
+    //Verifica se foi consultado um pedido para ser excluido
+    if StrToIntDef(EdtPedId.Text,0) > 0 then begin
+      if Assigned(_Pedido) then _Pedido.Destroy;
+      _Pedido := TPedido.Create;
+      with _Pedido do begin
+        Num_pedido    := StrToIntDef(EdtPedId.Text,0);
+        Delete;
+      end;
+      FreeAndNil(_Pedido);
+    end;
+  end else MessageDlg('Informe um numero de pedido', mtInformation, [mbOK], 0);
+
+
+end;
+
+procedure TFrmPedido.BtnProCancelarClick(Sender: TObject);
+begin
+  EdtProId.Enabled := true;
+  cDados.Cancel;
+  LimpaProduto;
+end;
+
+procedure TFrmPedido.BtnProInserirClick(Sender: TObject);
+begin
+  if StrToIntDef(EdtProId.Text,0) <= 0 then begin // Valida produto
+    MessageDlg('Informe o produto', mtInformation, [mbOK], 0);
+    EdtProId.SetFocus;
+    exit
+  end;
+  if StrToCurrDef(EdtProPreco.Text,0) <= 0 then begin // Valida preco
+    MessageDlg('Informe o preço do produto', mtInformation, [mbOK], 0);
+    EdtProPreco.SetFocus;
+    exit
+  end;
+  if StrToCurrDef(EdtProQuantidade.Text,0) <= 0 then begin // Valida quantidade
+    MessageDlg('Informe a quantidade do produto', mtInformation, [mbOK], 0);
+    EdtProQuantidade.SetFocus;
+    exit;
+  end;
+  if not(cDados.Active) then cDados.Open;
+
+  if cDados.State <> dsEdit then cDados.Append; // Valida se esta editando
+  cDadosID_PRODUTO.AsInteger    := StrToInt(EdtProId.Text);
+  cDadosDESCRICAO.AsString      := EdtProDescricao.Text;
+  cDadosQUANTIDADE.AsCurrency   := StrToCurrDef(EdtProPreco.Text,0);
+  cDadosPreco.AsCurrency        := StrToCurrDef(EdtProQuantidade.Text  ,0);
+  cDadosVLR_TOTAL.AsCurrency    := StrToCurrDef(EdtProVlrTotal.Text,0);
+  cDados.Post;
+
+  TotalizaPedido;
+
+  BtnProCancelar.Click; //Reabilita campo ID e limpa campos produtos
+  EdtProId.SetFocus;
+  cDados.First;
+end;
+
+procedure TFrmPedido.BtnSalvarClick(Sender: TObject);
+begin
+  try
+    if cDados.IsEmpty then begin
+      MessageDlg('Pedido sem produtos. Favor informa ao menos um produto para dar continuidade', mtInformation, [mbOK], 0);
+      exit;
+    end;
+
+    //Cria cabeçalho pedido
+    DM.FDConnection1.StartTransaction;
+    if Assigned(_Pedido) then _Pedido.Destroy;
+    _Pedido := TPedido.Create;
+    with _Pedido do begin
+      Num_pedido    := StrToIntDef(EdtPedId.Text,0);
+      Cliente_codigo:= StrToIntDef(trim(EdtPedCLi.Text),0);
+      Data_emissao  := EdtPedEmissao.Date;
+      Total         := StrToCurr(EdtTotalPedido.Text);
+      Insert;
+      //Insere Itens
+      _PedidoProduto.Num_pedido   := Num_pedido;
+      if _PedidoProduto.LimpaDados then begin
+        cDados.First;
+        while not(cDados.Eof) do begin
+          _PedidoProduto.Num_pedido   := Num_pedido;
+          _PedidoProduto.ID_produto   := cDadosID_PRODUTO.AsInteger;
+          _PedidoProduto.Quantidade   := cDadosQUANTIDADE.AsCurrency;
+          _PedidoProduto.Vlr_unitario := cDadosPRECO.AsCurrency;
+          _PedidoProduto.Vlr_total    := cDadosVLR_TOTAL.AsCurrency;
+          _PedidoProduto.Insert;
+          cDados.Next;
+        end;
+      end;
+    end;
+    DM.FDConnection1.Commit;
+    FreeAndNil(_Pedido);
+
+    LimpaProduto;
+    LimpaCabecalho;
+    EdtPedCli.SetFocus;
+  except
+    on E: Exception do begin
+      DM.FDConnection1.Rollback;
+      MessageDlg('Erro ao criar pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+
+procedure TFrmPedido.DBGrid1DrawColumnCell(Sender: TObject; const Rect: TRect;
+  DataCol: Integer; Column: TColumn; State: TGridDrawState);
+begin
+  if (gdSelected in State) or (gdFocused in State) then TDBGrid(Sender).Canvas.Brush.Color:=clGradientInactiveCaption
+  else                                                  TDBGrid(Sender).Canvas.Brush.Color:=clWindow;
+end;
+
+procedure TFrmPedido.DBGrid1Enter(Sender: TObject);
+begin
+  BtnProCancelar.Click;
+end;
+
+procedure TFrmPedido.DBGrid1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if (key = 46) and (Shift = []) then begin //Verifica se esta apertando somente o DELETE
+    if not(cDados.Active) then cDados.Open;
+    if cDadosID_PRODUTO.AsInteger > 0 then begin
+      if MessageDlg('Deseja realmente excluir o produto '+cDadosDESCRICAO.AsString+'?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+        cDados.Delete;
+    end;
+  end;
+end;
+
+procedure TFrmPedido.DBGrid1KeyPress(Sender: TObject; var Key: Char);
+begin
+  if key = #13 then begin // Ao aperta enter, carrega dados na tela
+    if not(cDados.Active) then cDados.Open;
+    if cDadosID_PRODUTO.AsInteger > 0 then begin
+      EdtProId.Enabled := false; // Desabilita possibilidade de alterar o ID do produto
+      EdtProId.Text        := cDadosID_PRODUTO.AsString;
+      EdtProDescricao.Text := cDadosDESCRICAO.AsString;
+      EdtProPreco.Text     := FormataVlr(cDadosQUANTIDADE.AsString);
+      EdtProQuantidade.Text:= FormataVlr(cDadosPRECO.AsString     );
+      EdtProVlrTotal.Text  := FormataVlr(cDadosVLR_TOTAL.AsString );
+      EdtProPreco.SetFocus;
+      cDados.Edit;
+    end;
+  end;
+end;
+
+procedure TFrmPedido.EdtPedCliChange(Sender: TObject);
+begin
+  BtnProCancelar.Click;
+  cDados.EmptyDataSet;
+  EdtPedId.Text          := '';
+  EdtPedEmissao.Date     := now;
+  EdtTotalPedido.Text    := '0,00';
+  BtnBuscaPedido.Visible := EdtPedCLi.Text = '';
+end;
+
+procedure TFrmPedido.EdtProPrecoExit(Sender: TObject);
+begin
+  EdtProPreco.Text := FormataVlr(EdtProPreco.Text);
+  EdtProVlrTotal.Text := FormataVlr(CurrToStr(StrToCurrDef(EdtProPreco.Text,0) * StrToCurrDef(EdtProQuantidade.Text,0)));
+end;
+
+procedure TFrmPedido.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  if Assigned(_Pedido ) then _Pedido.Free;
+  if Assigned(_Cliente) then _Cliente.Free;
+  if Assigned(_Produto) then _Produto.Free;
+end;
+
+procedure TFrmPedido.FormCreate(Sender: TObject);
+begin
+  EdtPedEmissao.Date := now;
+  cDados.CreateDataSet;
+  cDados.EmptyDataSet;
+  cDados.Open;
+end;
+
+procedure TFrmPedido.LimpaCabecalho;
+begin
+  EdtPedEmissao.Date := now;
+  EdtPedCli.Text     := '';
+  EdtCliNome.Text    := '';
+end;
+
+procedure TFrmPedido.LimpaProduto;
+begin
+  EdtProId.Text        := '';
+  EdtProDescricao.Text := '';
+  EdtProPreco.Text     := '';
+  EdtProQuantidade.Text:= '';
+  EdtProVlrTotal.Text  := '';
+end;
+
+procedure TFrmPedido.TotalizaPedido;
+var
+  nTotal: currency;
+begin
+  nTotal := 0;
+  DataSource1.Enabled := false;
+  cDados.First;
+  while not(cDados.Eof) do begin
+    nTotal := nTotal + cDadosVLR_TOTAL.AsCurrency;
+    cDados.Next;
+  end;
+  DataSource1.Enabled := true;
+  EdtTotalPedido.Text := FormataVlr(CurrToStr(nTotal));
+end;
+
+end.
+

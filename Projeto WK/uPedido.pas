@@ -1,0 +1,144 @@
+unit uPedido;
+
+interface
+
+uses
+  uDM, uPedidoProduto;
+
+type
+
+  TPedido = class
+  private
+    FNum_pedido: integer;
+    FCliente_codigo: integer;
+    FData_emissao: TDate;
+    FTotal: currency;
+    FProduto: TPedidoProduto;
+    FCliente_nome: string;
+  public
+    constructor Create; virtual;
+    destructor Destroy; virtual;
+    procedure Insert; virtual;
+    procedure Delete; virtual;
+    function Busca: boolean;
+    procedure LimpaCampos;
+    function LimpaDados: boolean;
+  published
+    property Num_pedido: integer            read FNum_pedido      write FNum_pedido;
+    property Cliente_codigo: integer        read FCliente_codigo  write FCliente_codigo;
+    property Data_emissao: TDate            read FData_emissao    write FData_emissao;
+    property Total: currency                read FTotal           write FTotal;
+    property _PedidoProduto: TPedidoProduto read FProduto         write FProduto;
+
+    property Cliente_nome: string           read FCliente_nome    write FCliente_nome;
+  end;
+
+implementation
+
+uses
+  System.SysUtils, Vcl.Dialogs;
+
+{ TPedido }
+
+function TPedido.Busca: boolean;
+begin
+  result := false;
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      Open('    select A.*, B.NOME as CLIENTE_NOME '+
+           '      from PEDIDO_DADOS_GERAIS A       '+
+           'inner join CLIENTES B on B.ID = A.CLIENTE_CODIGO '+
+           '     where A.NUM_PEDIDO = '+IntToStr(Num_pedido));
+      if not(IsEmpty) then begin
+        result := true;
+        Cliente_codigo := FieldByName('CLIENTE_CODIGO').AsInteger;
+        Data_emissao   := FieldByName('DATA_EMISSAO'  ).AsDateTime;
+        Total          := FieldByName('TOTAL'         ).AsCurrency;
+        Cliente_nome   := FieldByName('CLIENTE_NOME'  ).AsString;
+      end;
+    end;
+  except
+    on E: Exception do begin
+      MessageDlg('Erro ao consultar pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+constructor TPedido.Create;
+begin
+  LimpaCampos;
+  _PedidoProduto := TPedidoProduto.Create;
+end;
+
+procedure TPedido.Delete;
+begin
+  _PedidoProduto.Num_pedido := Num_pedido;
+  if _PedidoProduto.LimpaDados then //Deleta produtos do pedido
+    LimpaDados;                     //Deleta pedido
+end;
+
+destructor TPedido.Destroy;
+begin
+  FreeAndNil(FProduto);
+  inherited Destroy;
+end;
+
+procedure TPedido.Insert;
+begin
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      if Num_pedido = 0 then begin //Caso seja pedido novo
+        Open('select max(NUM_PEDIDO) as MAX from PEDIDO_DADOS_GERAIS');
+        Num_pedido := FieldByName('MAX').AsInteger+1;
+        Close;
+        SQL.Clear;
+        SQL.Add('insert into PEDIDO_DADOS_GERAIS(NUM_PEDIDO,CLIENTE_CODIGO,DATA_EMISSAO,TOTAL) values (:pNUMPED,:pIDCLI,:pDATA,:pTOTAL)');
+      end else begin //Caso seja atualização de dados
+        SQL.Clear;
+        SQL.Add('update PEDIDO_DADOS_GERAIS set CLIENTE_CODIGO = :pIDCLI, DATA_EMISSAO = :pDATA, TOTAL = :pTOTAL where NUM_PEDIDO = :pNUMPED');      
+      end;
+      Params.ParamValues['pNUMPED'] := Num_pedido;       
+      Params.ParamValues['pIDCLI' ] := Cliente_codigo;
+      Params.ParamValues['pDATA'  ] := FormatDateTime('YYYY-MM-DD', Data_emissao);
+      Params.ParamValues['pTOTAL' ] := Total;
+      ExecSQL;
+    end;
+  except
+    on E: Exception do begin
+      MessageDlg('Erro ao criar pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+procedure TPedido.LimpaCampos;
+begin
+  Num_pedido := 0;
+  Cliente_codigo := 0;
+  Total := 0;
+  Cliente_nome := '';
+end;
+
+function TPedido.LimpaDados: boolean;
+begin
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      SQL.Clear;
+      SQL.Add('delete from PEDIDO_DADOS_GERAIS where NUM_PEDIDO = '+IntToStr(Num_pedido));
+      ExecSQL;
+      result := true;
+    end;
+  except
+    on E: Exception do begin
+      result := false;
+      MessageDlg('Erro ao excluir pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+end.

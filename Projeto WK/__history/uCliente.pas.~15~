@@ -1,0 +1,90 @@
+unit uCliente;
+
+interface
+
+uses
+  uDM;
+
+type
+
+  TCliente = class
+  private
+    FID: integer;
+    FNome: string;
+    FMunicipio: string;
+    FUF: string;
+  public
+    constructor Create; virtual;
+    destructor Destroy; virtual;
+    procedure Insert; virtual;
+    procedure Delete; virtual;
+    function Busca: boolean;
+    procedure LimpaDados;
+  published
+    property ID: integer       read FID           write FID;
+    property Nome: string      read FNome         write FNome;
+    property Municipio: string read FMunicipio    write FMunicipio;
+    property UF: string        read FUF           write FUF;
+  end;
+
+implementation
+
+uses
+  System.SysUtils, Vcl.Dialogs;
+
+{ TCliente }
+
+function TCliente.Busca: boolean;
+begin
+  result := false;
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      Open('select * from CLIENTES where ID = '+IntToStr(ID));
+      if IsEmpty then begin
+        LimpaDados;
+      end else begin
+        ID        := FieldByName('ID').AsInteger;
+        Nome      := FieldByName('NOME').AsString;
+        Municipio := FieldByName('MUNICIPIO').AsString;
+        UF        := FieldByName('UF').AsString;
+        result    := true;
+      end;
+    end;
+  except
+    on E: exception do begin
+      MessageDlg('Erro ao buscar cliente'+#13+E.Message, mtError, [mbOK], 0);
+      exit;
+    end;
+  end;
+end;
+
+constructor TCliente.Create;
+begin
+  //
+end;
+
+procedure TCliente.Delete;
+begin
+  //
+end;
+
+destructor TCliente.Destroy;
+begin
+  Free;
+end;
+
+procedure TCliente.Insert;
+begin
+  //
+end;
+
+procedure TCliente.LimpaDados;
+begin
+  ID := 0;
+  Nome := '';
+  Municipio := '';
+  UF := '';
+end;
+
+end.

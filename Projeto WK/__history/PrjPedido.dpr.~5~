@@ -1,0 +1,19 @@
+program PrjPedido;
+
+uses
+  Vcl.Forms,
+  uFrmPedido in 'uFrmPedido.pas' {FrmPedido},
+  uFuncoes in 'uFuncoes.pas',
+  uDM in 'uDM.pas' {DM: TDataModule},
+  uFrmConsulta in 'uFrmConsulta.pas' {Form1};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TFrmPedido, FrmPedido);
+  Application.CreateForm(TDM, DM);
+  Application.CreateForm(TForm1, Form1);
+  Application.Run;
+end.

@@ -1,0 +1,28 @@
+unit uFuncoes;
+
+interface
+
+function BuscaSplash(pTable, pFieldRetorno: string): string;
+function FormataVlr(sVlr:String): string;
+
+implementation
+
+uses
+  uDM;
+
+function BuscaSplash(pTable, pFieldRetorno: string): string;
+begin
+
+end;
+
+function FormataVlr(sValor:String): string;
+var
+  sVlr: UnicodeString;
+  nVlr: Currency;
+begin
+  sVlr := sValor;
+  if TryStrToCurr(sVlr, nVlr) then EdtProVlr.Text := FormatFloat('##0.00', nVlr)
+  else                             EdtProVlr.Text := '0,00';
+end;
+
+end.

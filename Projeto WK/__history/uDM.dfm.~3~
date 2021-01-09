@@ -1,0 +1,73 @@
+object DM: TDM
+  OldCreateOrder = False
+  OnCreate = DataModuleCreate
+  Height = 458
+  Width = 705
+  object FDConnection1: TFDConnection
+    Params.Strings = (
+      'Database=DB_WK'
+      'User_Name=root'
+      'Server=localhost'
+      'DriverID=MySQL')
+    Connected = True
+    LoginPrompt = False
+    Left = 88
+    Top = 56
+  end
+  object qClientes: TFDQuery
+    Connection = FDConnection1
+    SQL.Strings = (
+      'select * from CLIENTES order by NOME')
+    Left = 88
+    Top = 120
+    object qClientesID: TFDAutoIncField
+      FieldName = 'ID'
+      Origin = 'ID'
+      ProviderFlags = [pfInWhere, pfInKey]
+    end
+    object qClientesNOME: TStringField
+      AutoGenerateValue = arDefault
+      FieldName = 'NOME'
+      Origin = 'NOME'
+      Size = 150
+    end
+    object qClientesCIDADE: TStringField
+      AutoGenerateValue = arDefault
+      FieldName = 'CIDADE'
+      Origin = 'CIDADE'
+      Size = 80
+    end
+    object qClientesUF: TStringField
+      AutoGenerateValue = arDefault
+      FieldName = 'UF'
+      Origin = 'UF'
+      FixedChar = True
+      Size = 2
+    end
+  end
+  object qProdutos: TFDQuery
+    Connection = FDConnection1
+    SQL.Strings = (
+      'select * from PRODUTOS order by DESCRICAO')
+    Left = 88
+    Top = 176
+    object qProdutosID: TFDAutoIncField
+      FieldName = 'ID'
+      Origin = 'ID'
+      ProviderFlags = [pfInWhere, pfInKey]
+    end
+    object qProdutosDESCRICAO: TStringField
+      AutoGenerateValue = arDefault
+      FieldName = 'DESCRICAO'
+      Origin = 'DESCRICAO'
+      Size = 100
+    end
+    object qProdutosPRECO: TBCDField
+      AutoGenerateValue = arDefault
+      FieldName = 'PRECO'
+      Origin = 'PRECO'
+      Precision = 9
+      Size = 2
+    end
+  end
+end

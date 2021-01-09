@@ -1,0 +1,181 @@
+unit uPedidoProduto;
+
+interface
+
+uses
+ Datasnap.DBClient;
+
+type
+  TPedidoProduto = class
+  private
+    FID: integer;
+    FNum_pedido: integer;
+    FID_produto: integer;
+    FQuantidade: currency;
+    FVlr_unitario: currency;
+    FVlr_total: currency;
+    FDescricao_produto: string;
+  public
+    constructor Create; virtual;
+    destructor Destroy; virtual;
+    procedure Insert; virtual;
+    procedure Delete; virtual;
+    function Busca: boolean;
+    function CarregaProdutos(var pProdutos: array of TPedidoProduto): boolean;
+    procedure LimpaCampos;
+    function LimpaDados: boolean;
+  published
+    property ID: integer            read FID           write FID;
+    property Num_pedido: integer    read FNum_pedido   write FNum_pedido;
+    property ID_produto: integer    read FID_produto   write FID_produto;
+    property Quantidade: currency   read FQuantidade   write FQuantidade;
+    property Vlr_unitario: currency read FVlr_unitario write FVlr_unitario;
+    property Vlr_total: currency    read FVlr_total    write FVlr_total;
+
+    property Descricao_produto: string read FDescricao_produto  write FDescricao_produto;
+  end;
+
+implementation
+
+uses
+  uDM, System.SysUtils, Vcl.Dialogs;
+
+{ TPedidoProduto }
+
+function TPedidoProduto.Busca: boolean;
+begin
+  result := false;
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      Open('    select A.*, B.DESCRICAO as DESCRICAO_PRODUTO '+
+           '      from PEDIDO_PRODUTOS A                     '+
+           'inner join PRODUTOS B on B.ID = A.ID_PRODUTO     '+
+           '     where A.NUM_PEDIDO = '+IntToStr(Num_pedido)  +
+           '       and A.ID = '+IntToStr(ID));
+      if not(IsEmpty) then begin
+        result := true;
+        ID                := FieldByName('ID'               ).AsInteger;
+        Num_pedido        := FieldByName('NUM_PEDIDO'       ).AsInteger;
+        ID_produto        := FieldByName('ID_PRODUTO'       ).AsInteger;
+        Quantidade        := FieldByName('QUANTIDADE'       ).AsCurrency;
+        Vlr_unitario      := FieldByName('VLR_UNITARIO'     ).AsCurrency;
+        Vlr_total         := FieldByName('VLR_TOTAL'        ).AsCurrency;
+        Descricao_produto := FieldByName('DESCRICAO_PRODUTO').AsString;
+      end;
+    end;
+  except
+    on E: Exception do begin
+      MessageDlg('Erro ao consultar produto!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+function TPedidoProduto.CarregaProdutos(var pProdutos: array of TPedidoProduto): boolean;
+var
+  i: integer;
+begin
+  result := false;
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      Open('    select A.*, B.DESCRICAO as DESCRICAO_PRODUTO '+
+           '      from PEDIDO_PRODUTOS A                     '+
+           'inner join PRODUTOS B on B.ID = A.ID_PRODUTO     '+
+           '     where A.NUM_PEDIDO = '+IntToStr(Num_pedido)) ;
+      if not(IsEmpty) then begin
+        result := true;
+        First;
+        for i := 0 to RecordCount-1 do begin
+          if not(Assigned(pProdutos[i])) then FreeAndNil(pProdutos[i]);
+          pProdutos[i] := TPedidoProduto.Create;
+          pProdutos[i].ID                := FieldByName('ID'               ).AsInteger;
+          pProdutos[i].Num_pedido        := FieldByName('NUM_PEDIDO'       ).AsInteger;
+          pProdutos[i].ID_produto        := FieldByName('ID_PRODUTO'       ).AsInteger;
+          pProdutos[i].Quantidade        := FieldByName('QUANTIDADE'       ).AsCurrency;
+          pProdutos[i].Vlr_unitario      := FieldByName('VLR_UNITARIO'     ).AsCurrency;
+          pProdutos[i].Vlr_total         := FieldByName('VLR_TOTAL'        ).AsCurrency;
+          pProdutos[i].Descricao_produto := FieldByName('DESCRICAO_PRODUTO').AsString;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do begin
+      MessageDlg('Erro ao consultar produto!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+
+end;
+
+constructor TPedidoProduto.Create;
+begin
+  LimpaCampos;
+end;
+
+procedure TPedidoProduto.Delete;
+begin
+//
+end;
+
+destructor TPedidoProduto.Destroy;
+begin
+  inherited Destroy;
+end;
+
+procedure TPedidoProduto.Insert;
+begin
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      SQL.Clear;
+      SQL.Add('insert into PEDIDO_PRODUTOS(NUM_PEDIDO,ID_PRODUTO,QUANTIDADE,VLR_UNITARIO,VLR_TOTAL) values (:pNUM_PEDIDO,:pID_PRODUTO,:pQUANTIDADE,:pVLR_UNITARIO,:pVLR_TOTAL)');
+      Params.ParamValues['pNUM_PEDIDO'  ] := Num_pedido;
+      Params.ParamValues['pID_PRODUTO'  ] := ID_produto;
+      Params.ParamValues['pQUANTIDADE'  ] := Quantidade;
+      Params.ParamValues['pVLR_UNITARIO'] := Vlr_unitario;
+      Params.ParamValues['pVLR_TOTAL'   ] := Vlr_total;
+      ExecSQL;
+    end;
+  except
+    on E: Exception do begin
+      MessageDlg('Erro ao inserir produtos pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+procedure TPedidoProduto.LimpaCampos;
+begin
+  ID := 0;
+  Num_pedido := 0;
+  ID_produto := 0;
+  Quantidade := 0;
+  Vlr_unitario := 0;
+  Vlr_total := 0;
+
+  Descricao_produto := '';
+end;
+
+function TPedidoProduto.LimpaDados: boolean;
+begin
+  try
+    with DM.qSqlQuery do begin
+      Close;
+      SQL.Clear;
+      SQL.Add('delete from PEDIDO_PRODUTOS where NUM_PEDIDO = '+IntToStr(Num_pedido));
+      ExecSQL;
+      result := true;
+    end;
+  except
+    on E: Exception do begin
+      result := false;
+      MessageDlg('Erro ao excluir produtos do pedido!'+#13+E.Message, mtError, [mbOK], 0);
+      exit
+    end;
+  end;
+end;
+
+end.
+
